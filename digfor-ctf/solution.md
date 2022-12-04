@@ -778,20 +778,6 @@ Wert aus FSINFO Struktur an LBA 2 auslesen
 
 **Flag**: `50`
 
-### 6_FAT_Entries_2 (10)
-
-> Betrachten Sie die File Allocation Table von partition2.dd. Welchen Wert hat der Zeiger von Cluster 31?
-> Antworten Sie in der Form 0xABCD.
-
-FAT16, Cluster-Zeiger sind daher 16-Bit. Wert des 31. Eintrag der FAT auslesen
-```bash
-# * FAT 0: 8 - 155
-dd if=partition2.dd skip=8 | dd bs=2 skip=31 count=1 status=none | xxd -c2
-00000000: ffff  ..
-```
-
-**Flag**: `0xFFFF`
-
 ### 6_FAT_Entries_1 (10)
 > Betrachten Sie die File Allocation Table von partition2.dd. Ist Cluster 16 der erste Cluster der Cluster Chain oder nicht?
 > Antworten Sie mit "Ja" oder "Nein".
@@ -830,10 +816,298 @@ $ icat partition1.dd 2 | dd bs=32 skip=$((32-3)) count=1 status=none | xxd
 000002d8: b700 0000  ....
 ```
 
+### 6_FAT_Entries_2 (10)
+
+> Betrachten Sie die File Allocation Table von partition2.dd. Welchen Wert hat der Zeiger von Cluster 31?
+> Antworten Sie in der Form 0xABCD.
+
+FAT16, Cluster-Zeiger sind daher 16-Bit. Wert des 31. Eintrag der FAT auslesen
+```bash
+# * FAT 0: 8 - 155
+dd if=partition2.dd skip=8 | dd bs=2 skip=31 count=1 status=none | xxd -c2
+00000000: ffff  ..
+```
+
+**Flag**: `0xFFFF`
+
 ### 6_FAT_Entries_3
 
 > Sie wissen nun, dass die zugehörige Cluster Chain bei Cluster 31 endet (vgl. Aufgabe 6_FAT_Entries_2).
 
 > Wieviele Sektoren umfasst die Cluster Chain insgesamt?
+
+Die Cluster-Chain lautet: `2-3-..-30-31`. Die Kette umfasst 30 Cluster. Ein Cluster umfasst 8192 / 512 = 16 Sektoren.  
+Anzahl umfasster Sektoren = 30 * 16 = 480
+```bash
+$ xxd -c2 -a fat0-part2.dd| nl | less
+# ignorieren
+ 1  00000000: f8ff  ..
+# ignorieren
+ 2  00000002: ffff  ..
+# 2. Eintrag verweist auf Cluster 3
+ 3  00000004: 0300  ..
+ 4  00000006: 0400  ..
+ 5  00000008: 0500  ..
+ 6  0000000a: 0600  ..
+ 7  0000000c: 0700  ..
+ 8  0000000e: 0800  ..
+ 9  00000010: 0900  ..
+10  00000012: 0a00  ..
+11  00000014: 0b00  ..
+12  00000016: 0c00  ..
+13  00000018: 0d00  ..
+14  0000001a: 0e00  ..
+15  0000001c: 0f00  ..
+16  0000001e: 1000  ..
+17  00000020: 1100  ..
+18  00000022: 1200  ..
+19  00000024: 1300  ..
+20  00000026: 1400  ..
+21  00000028: 1500  ..
+22  0000002a: 1600  ..
+23  0000002c: 1700  ..
+24  0000002e: 1800  ..
+25  00000030: 1900  ..
+26  00000032: 1a00  ..
+27  00000034: 1b00  ..
+28  00000036: 1c00  ..
+29  00000038: 1d00  ..
+30  0000003a: 1e00  ..
+31  0000003c: 1f00  ..
+# Cluster 31 mit EOF-Label gehört noch zur Cluster-Chain!
+32  0000003e: ffff  ..
+```
+
+Es ist die erste Cluster-Chain in `fsstat`.
+```bash
+$ fsstat partition2.dd
+[REMOVED]
+FAT CONTENTS (in sectors)
+--------------------------------------------
+336-815 (480) -> EOF
+```
+
+**Flag**: `480`
+
+### 6_FAT_File_Recovery2_2 (10)
+
+> Stellen Sie die gelöschte Datei "Methamphetamine.jpg" wieder her. Benennen Sie deren SHA-256 Hashsumme.
+
+Die Metadatenadresse lautet 32. `istat` zeigt die betroffenen Sektoren an, welche von den allozierten Clustern der Datei umfasst werden.
+```bash
+$ istat partition1.dd 32
+Directory Entry: 32
+Not Allocated
+File Attributes: File, Archive
+Size: 39684
+Name: _ETHAM~1.JPG
+[REMOVED]
+Sectors:
+11096 11097 11098 11099 11100 11101 11102 11103
+11104 11105 11106 11107 11108 11109 11110 11111
+[REMOVED]
+```
+
+Sektoren aneinanderfügen und Bild wiederherstellen
+```bash
+$ icat partition1.dd 32 > recovered_image.jpg
+$ sha256sum recovered_image.jpg
+34fbe8499bb18a5ad96ea30fcba588d59c5f42cc4cd2b454bc21672aa38ad4a4  recovered_image.jpg
+```
+
+**Flag**: `34fbe8499bb18a5ad96ea30fcba588d59c5f42cc4cd2b454bc21672aa38ad4a4`
+
+### 6_Root_Directory_5 (15)
+
+> Betrachten Sie das Wurzelverzeichnis von partition1.dd.
+
+> Aus wie vielen weiteren Datencluster besteht die Datei aus der Aufgabe 6_Root_Directory_2 (Verzeichniseintrag mit der Metadatenadresse 28)?
+
+Datei liegt im Root-Verzeichnis (Metadatenadresse 2). Ihre Verzeichniseinträge ausgeben. Startclusteradresse der Date mit Metadatenadresse 28 ist 5
+```bash
+$ icat partition1.dd 2 | xxd -c32
+00000320: 4c41 4745 4245 7e31 5044 4620 0074 8d79 6f48 6f48 0000 9179 6f48 0500 b050 1600  LAGEBE~1PDF .t.yoHoH...yoH...P..
+```
+
+Die Cluster-Chain der Datei lautet `5-6-...-718-719`
+```bash
+$ xxd -c4 fat0.dd | nl -v0
+[REMOVED]
+5  00000014: 0600 0000  ....
+6  00000018: 0700 0000  ....
+[REMOVED]
+718  00000b38: cf02 0000  ....
+719  00000b3c: ffff ff0f  ....
+[REMOVED]
+```
+
+Die allozierten Cluster lauten 5-719. Diese liegen innerhalb der Sektoren 8204-11063.
+```bash
+$ python3 cluster2sectors.py 5 4 8192
+Cluster 5 includes sectors 8204-8207
+$ python3 cluster2sectors.py 719 4 8192
+Cluster 719 includes sectors 11060-11063
+```
+
+Das stimmt mit der Angabe aus `fsstat` überein. Die Datei besteht auf `719-5+1 = 715` Clustern.
+```bash
+$ fsstat partition1.dd
+FAT CONTENTS (in sectors)
+--------------------------------------------
+[REMOVED]
+8204-11063 (2860) -> EOF
+[REMOVED]
+# (11063-8204 + 1) / 4 Sektoren pro Cluster = 715
+```
+
+**Flag**: `715`
+
+### 6_FAT_File_Recovery_2 (15)
+
+> Im Wurzelverzeichnis von partition2.dd stoßen Sie auf folgenden Eintrag:
+
+```
+00000240: e559 4e54 4845 7e31 5044 4620 0067 b875  .YNTHE~1PDF .g.u
+00000250: 6f48 6f48 0000 326f 6543 8605 d509 0c00  oHoH..2oeC......
+```
+
+> Stellen Sie die entsprechende Datei mittels blkcat wieder her und speichern Sie sie als "recovered_file" ab.
+
+> Nennen Sie den zugehörigen blkcat Befehl in der Form: blkcat partition2.dd x y > recovered_file
+
+Es handelt sich um eine gelöschte Datei mit einem Long File Name
+```bash
+$ dd if=partition2.dd skip=304 count=$((335-304+1)) | xxd -c32 
+[REMOVED]
+00000180: e542 0065 0068 0061 0076 000f 0079 6900 6f00 7200 7300 2e00 7000 0000 6400 6600  .B.e.h.a.v...yi.o.r.s...p...d.f.
+000001a0: e56d 0020 0053 0075 0073 000f 0079 7000 6900 6300 6900 6f00 7500 0000 7300 2000  .m. .S.u.s...yp.i.c.i.o.u...s. .
+000001c0: e566 0069 0063 0061 0074 000f 0079 6900 6f00 6e00 7300 2000 6600 0000 7200 6f00  .f.i.c.a.t...yi.o.n.s. .f...r.o.
+000001e0: e54d 0061 006c 0077 0061 000f 0079 7200 6500 2000 5300 7000 6500 0000 6300 6900  .M.a.l.w.a...yr.e. .S.p.e...c.i.
+00000200: e54e 0065 0061 0072 002d 000f 0079 4f00 7000 7400 6900 6d00 6100 0000 6c00 2000  .N.e.a.r.-...yO.p.t.i.m.a...l. .
+00000220: e553 0079 006e 0074 0068 000f 0079 6500 7300 6900 7a00 6900 6e00 0000 6700 2000  .S.y.n.t.h...ye.s.i.z.i.n...g. .
+00000240: e559 4e54 4845 7e31 5044 4620 0067 b875 6f48 6f48 0000 326f 6543 8605 d509 0c00  .YNTHE~1PDF .g.uoHoH..2oeC......
+[REMOVED]
+```
+
+Anhand des LNF lässt sich die Datei mit `fls` finden (Metadatenadresse 21)
+```bash
+$ fls -r partition2.dd
+r/r 10: Outside the Closed World_ On Using Machine Learning for Network Intrusion Detection.pdf
+r/r 14: studie_voipsec-bso-2005.pdf
+r/r * 21:       Synthesizing Near-Optimal Malware Specifications from Suspicious Behaviors.pdf
+```
+```bash
+$ istat partition2.dd 21
+[REMOVED]
+Size: 788949
+Name: _YNTHE~1.PDF
+[REMOVED]
+Sectors:
+22928 22929 22930 22931 22932 22933 22934 22935
+22936 22937 22938 22939 22940 22941 22942 22943
+```
+
+Die angegebene Größe stimmt nicht mit der Anzahl der Sektoren überein. Für 788949 Byte müssten es `ceil(788949 / 512) = 1541` Sektoren sein
+```bash
+$ blkcat partition2.dd 22928 1541 > recovered_file
+$ sha256sum recovered_file
+b3e427ce6229947c96cba95046a7166f3c59f8bbb3a9a23594adc8ff8a2eefd6  recovered_file
+```
+
+**Flag**: `blkcat partition2.dd 22928 1541 > recovered_file`
+
+### 6_FAT_Flag_Slackline (40)
+
+> Finden Sie das versteckte Token. Achten Sie auf Bereiche welche normalerweise nicht vom Dateisystem verwendet werden (Slack).
+
+> Hinweis: Alle Flags sind in der FAT32-Partition versteckt. Token in der Form flag{ABC}. Tokens können verschleiert sein.
+
+FAT-Slack: Bereich zwischen letztem FAT-Eintrag und nächstem Datenbereich. Nächste FAT-Tabelle oder Datenbereich.
+
+FAT0 extrahieren
+```bash
+# * FAT 0: 7022 - 7606
+$ dd if=partition1.dd of=fat0.dd skip=7022 count=$((7606+1-7022))
+$ sha256sum fat0.dd
+c2191c67a5b32cc5f68e3d22aacf19e048092d1a8671d9fc78506699c47f4120  fat0.dd
+```
+
+Die letzte allozierte Cluster-Chain ist: `18056-23863 (5808) -> EOF`. Sektor `23863` liegt in Cluster 3919
+```bash
+$ python3 sector2cluster.py 23863 8192 4
+Sector 23863 is in cluster 3919
+```
+
+Die restlichen FAT-Eintrage 3920-74879 werden nicht benutzt
+```bash
+[REMOVED]
+ 3918  00003d38: 4f0f 0000  O...
+ 3919  00003d3c: ffff ff0f  ....
+ 3920  00003d40: 0000 0000  ....
+ 3921  00003d44: 0000 0000  ....
+[REMOVED]
+74879  000491fc: 3000 3d00  0.=.
+```
+
+Damit lässt sich der FAT-Slack extrahieren
+```bash
+$ dd if=fat0.dd of=fat0.slack.dd bs=4 skip=$((3920)) count=$((74879+1-3920))
+```
+
+Am Ende des FAT-Slack finden sich ASCII Zeichen mit einer offensichtlichen Zeichenbreite von 16-bit
+```bash
+$ strings -e l fat0.slack.dd
+ZmxhZ3tGQVRzbEFjS30=
+$ echo -n 'ZmxhZ3tGQVRzbEFjS30=' | base64 -d
+flag{FATslAcK}
+```
+
+**Flag**: `flag{FATslAcK}`
+
+### 6_FAT_Flag_Looking_For_a_Name (40)
+
+> Finden Sie das versteckte Token.
+
+> Hinweis: Alle Flags sind in der FAT32-Partition versteckt. Token in der Form flag{ABC}. Tokens können verschleiert sein.
+
+Nach Flag suchen. Das Offset `0x400301` zeigt in Sektor `ceil(0x400301 / 512) = 8194` und somit in das Wurzelverzeichnis.
+```bash
+# *** Root Directory: 8192 - 8195
+$ strings -t x partition1.dd | grep flag
+ 400301 flag{Se
+```
+
+Wurzelverzeichnis extrahieren und ausgeben
+```bash
+$ dd if=partition1.dd of=partition1.rootdir.dd skip=8192 count=$((8195+1-8192))
+$ sha256sum partition1.rootdir.dd
+9c825c3163bfa395a6c7c4cb0f2c5074e4c3acae3bace4911b8525e11894a44b  partition1.rootdir.dd
+
+```
+
+Es existiert ein Eintrag mit einem Long File Name.  
+Metadatenadresse `27` hat die die Sequenznummer 1.  
+Metadatenadresse `26` hat die letzte Sequenznummer. Sie wird mit der Konstanten `0x40` exklusiv ODER vernknüpft `0x42 ^ 0x40 = 2`.
+```bash
+$ xxd -c32 partition1.rootdir.dd | nl -v3 | less
+[REMOVED]
+26  000002e0: 4231 0035 002e 0070 0064 000f 00fa 6600 0000 ffff ffff ffff ffff 0000 ffff ffff  B1.5...p.d....f.................
+27  00000300: 0166 6c61 677b 5365 0062 000f 00fa 6500 7200 6900 6300 6800 7400 0000 3200 3000  .flag{Se.b....e.r.i.c.h.t...2.0.
+28  00000320: 4c41 4745 4245 7e31 5044 4620 0074 8d79 6f48 6f48 0000 9179 6f48 0500 b050 1600  LAGEBE~1PDF .t.yoHoH...yoH...P..
+[REMOVED]
+```
+
+Zeichen die nicht zum Dateinamen gehören entfernen und UTF-16 Zeichenkette ausgeben
+```
+27  00000300: 01 66 6c 61 67 7b 53 65 00 62 00 0f 00 fa 65 00 72 00 69 00 63 00 68 00 74 00 00 00 32 00 30 00  .flag{Se.b....e.r.i.c.h.t...2.0.
+27  00000300:                      65 00 62 00          65 00 72 00 69 00 63 00 68 00 74 00       32 00 30 00  .flag{Se.b....e.r.i.c.h.t...2.0.
+
+26  000002e0: 42 31 00 35 00 2e 00 70 00 64 00 0f 00 fa 66 00 00 00 ff ff ff ff ff ff ff ff 00 00 ff ff ff ff  B1.5...p.d....f.................
+26  000002e0:    31 00 35 00 2e 00 70 00 64 00          66 00                                                  B1.5...p.d....f.................
+```
+```bash
+$ echo '6500620065007200690063006800740032003000310035002e00700064006600' | xxd -r -p
+ebericht2015.pdf
+```
 
 
