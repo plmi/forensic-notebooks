@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-  # Example: <program> 5 4 8192
-  # Cluster 5 includes sectors 8204-8207
+# Example: <program> 5 4 8192
+# Cluster 5 includes sectors 8204-8207
 
 import argparse
 
