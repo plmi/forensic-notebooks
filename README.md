@@ -49,13 +49,20 @@ $ dd if=/dev/sdb1 of=partition1.dd
 
 # Partitionsschema: DOS
 
-## Datenstrukur MBR / Partitionstabelleneintrag
+## Bootsektor / Partitionstabelleneintrag
 
 Datenstruktur des MBR  
 ![datenstruktur-mbr](./images/mbr.png)
 
 Datenstruktur eines Partitionstabelleneintrag des MBR. Jeder Eintrag ist 16 Byte groß.
 ![datenstruktur-mbr](./images/mbr-partition-entry.png)
+
+Partitionen auflisten
+```bash
+$ fdisk -l image.dd
+# oder
+$ mmls image.dd
+```
 
 MBR auslesen
 ```bash
@@ -103,6 +110,115 @@ $ mmcat image_ws.dd 2 > partition1.dd
 ```
 
 # Partitionsschema: GPT
+
+Vorteile im Vergleich zu DOS:
+* 64- statt 32-Bit Adressierung
+* erlaubt Verwaltung von 128 Partitionen (DOS: 4 Primärpartitionen)
+* CRC-32 Prüfsumme bietet besseren Schutz vor Manipulation als lediglich `55aa` Signatur
+* Backup GPT-Partitionstabelle am Ende der Partition
+
+Partitionen auflisten
+```bash
+$ gdisk -l gptimage.dd
+```
+
+Übersicht einer GPT partitionierten Festplatte. Im letzten Sektor liegt das Backup des Bootsektors. Davor das Backup der Partitionstabelle.  
+
+![gpt-area](./images/gpt-area.png)
+
+Integrität des GPT-Partitionsschema validieren und korrigieren
+```bash
+$ gdisk gptimage.backup.dd
+[REMOVED]
+Caution! After loading partitions, the CRC doesn't check out!
+Warning! Main partition table CRC mismatch! Loaded backup partition table
+instead of main partition table!
+[REMOVED]
+Main partition table: ERROR
+[REMOVED]
+Partition table scan:
+  MBR: protective
+  BSD: not present
+  APM: not present
+  GPT: damaged
+```
+
+## Protective MBR
+
+An LBA 0 steht der geschützte MBR. Dieser enthält genau eine Partition, welche den gesamten Datenträger umfasst. Er gewährleistet Rückwärtskompatibiltät und verhindert, dass nicht-GPT Systeme den Datenträger als leer einstufen.
+
+```bash
+$ mmls -t dos gptimage.dd
+      Slot      Start        End          Length       Description
+000:  Meta      0000000000   0000000000   0000000001   Primary Table (#0)
+001:  -------   0000000000   0000000000   0000000001   Unallocated
+002:  000:000   0000000001   0008388607   0008388607   GPT Safety Partition (0xee)
+```
+
+## (Backup-)Bootsektor
+
+Steht immer an LBA 1.
+
+![gpt-area](./images/gpt-bootsector.png)
+
+Das Backup des Bootsektors ist *nicht* bitgenau zum originalen Bootsektor. Es unterscheidet sich in den Verweisen auf die aktuelle/weitere Partitionstabelle (Offset 24 bzw. 32). Somit sind auch die Prüfsummen unterschiedlich (Offset 16).
+
+![ compare-gpt-headers.png](./images/compare-gpt-headers.png)
+
+Beide Bootsektoren finden
+```bash
+$ sigfind -b 512 4546 gptimage.dd
+Block size: 512  Offset: 0  Signature: 4546
+# regulärer Bootsektor
+Block: 1 (-)
+# Backup Bootsektor
+Block: 8388607 (+8388606)
+```
+
+## (Backup-)Partitionstabelle
+
+Die Partitionstabelle ist nicht Teil des Bootsektors. Sie liegt separat und umfasst bis zu 128 Einträge.  
+Ihr LBA steht im Bootsektor an Offset 72-79.  
+Ein Backup davon liegt im Backup-Bereich des GPT Datenträgers.
+
+Position der Backup-Partitionstabelle berechnen
+```bash
+$ mmls gptimage.dd
+[REMOVED]
+007:  -------   0008388000   0008388607   0000000608   Unallocated
+# Anzahl und Größe der Partitionstabelleneinträge aus Bootsektor auslesen; hier: 128 * 128
+```
+
+Rechenbeispiel
+```
+- Letzer Sektor der Partition - Größe der Partitionstabelle in Sektoren
+8388607 Sektoren - (128 Einträge * 128 Byte pro Eintrag) / 512 Byte pro Sektor
+8388607 Sektoren - 32 Sektoren = 8388575 LBA
+```
+
+Alternativ die GUID des ersten Partitionstabelleneintrag als Signatur verwenden
+```bash
+$ sigfind -b 512 a4bb94de gptimage.dd
+Block size: 512  Offset: 0  Signature: A4BB94DE
+Block: 2 (-)
+Block: 8388575 (+8388573)
+```
+
+Bei einem korrupten Schema lässt sich die Backup-Partitionstabelle auch mit `gdisk` wiederherstellen.
+
+## Partitionstabelleneintrag
+
+![gpt-partition-table-entry](./images/gpt-partition-table-entry.png)
+
+Zweiten Partitionstabelleneintrag aus Abbild auslesen bzw. 
+```bash
+$ dd if=gptimage.dd skip=2 count=1 status=none | dd of=entry2_2.dd bs=128 skip=1 count=1
+```
+
+... direkt Partitionstabelle auslesen
+```bash
+$ dd if=gpt-partition-table.dd of=entry2_1.dd bs=128 skip=1 count=1
+```
 
 # FAT12/16/32
 
