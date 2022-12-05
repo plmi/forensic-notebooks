@@ -543,6 +543,7 @@ Dateien lassen sich anhand ihrer Metadatenadresse wiederherstellen.
 Dateien liegen innerhalb des Datenbereichs in Clustern. Ein Cluster umfasst mehrere Sektoren.  
 Dateien können fragmentiertet auf verschiedene Clustern verteilt sein.
 
+Nicht-fragmentierte, gelöschte Dateien wiederherstellen
 ```bash
 $ $ istat partition1.dd 32
 Directory Entry: 32
@@ -554,6 +555,12 @@ Sectors:
 ```
 ```bash
 $ icat partition1.dd 32 > recovered.jpg
+```
+
+Alle gelöschten Dateien wiederherstellen
+```bash
+$ mkdir recovered_files
+$ tsk_recover wc.dd recovered_files
 ```
 
 Der *RAM-Slack* ist der nicht belegte Bereich des letzten benutzten Sektors für den Dateiinhalt.  
