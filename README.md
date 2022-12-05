@@ -298,6 +298,17 @@ Maximal adressierbare Anzahl Cluster im Dateisystem
 - z.B. FAT16: 2^16 = 65536 Cluster
 ```
 
+Dateisystem-Slack (DS) berechnen
+```
+# Sector Size: 512
+# Cluster Size: 4096
+# Non-clustered: 983038 - 983039
+# FAT 0: 32 - 990
+- Anzahl übrige Sektoren = Größe des Dateisystems in Sektoren - Reservierter Bereich - (2 * Größe FAT) mod (Sektoren pro Cluster)
+                         = 983040 - 32 - 2 * 959 mod 8 = 2
+- Startsektor DS = Größe des Dateisystems in Sektoren - Anzahl übrige Sektoren = 983038
+```
+
 ## File Allocation Table (FAT)
 
 FAT Bereich wird *nicht* über Cluster adressiert.  
@@ -351,6 +362,14 @@ FAT CONTENTS (in sectors)
 Belegte Sektoren pro Cluster-Chain berechnen
 ```
 Anzahl Sektoren pro Cluster * Anzahl Elemente der Cluster-Chain
+```
+
+Allokationsstatus und Cluster zu einem Sektor ausgeben
+```bash
+$ blkstat wc.dd 10958
+Sector: 10958
+Allocated
+Cluster: 1128
 ```
 
 ### FAT-Eintrag
@@ -449,7 +468,9 @@ Ende-Sektoradresse = Start-Sektoradresse des Clusters k + Anzahl Sektoren pro Cl
 
 ## Wurzelverzeichnis (Root Directory)
 
-Liste mit (Basis-)Verzeichniseinträgen (je 32 Byte). Speichert neben Dateinamen, auch Metadaten, wie Adresse des 1. Clusters des Dateiinhalts, MAC-Zeitstempel, Dateigröße.
+Liste mit (Basis-)Verzeichniseinträgen (je 32 Byte).
+Speichert neben Dateinamen, auch Metadaten, wie Adresse des 1. Clusters des Dateiinhalts, MAC-Zeitstempel, Dateigröße.  
+In FAT12/16 an fixer Stelle und fester Größe. In FAT32 im Clusterbereich und variable Größe.
 
 ![basisverzeichniseintrag](./images/basisverzeichniseintrag.png)
 
@@ -511,7 +532,10 @@ Für den Basiseintrag wird aus Kompatibilitätsgründen einen 8.3 langer Dateina
 
 ### (Gelöschte) Datei wiederherstellen
 
-Datei in FAT-Dateisystem löschen
+Datei in FAT-Dateisystem löschen.  
+Das erste Byte im Verzeichniseintrag wird auf `5e` gesetzt.  
+Die zugehörigen Cluser in der FAT werden auf `0` gesetzt.  
+Der Verzeichniseintrag im Wurzelverzeichnis bleibt erhalten.
 
 ![delete-file](./images/delete-file.png)
 
@@ -607,6 +631,10 @@ Liegt aber gewöhnlich im Sektor 2, umittelbar nach dem Bootsektor.
 
 ![image](images/fsinfo.png)
 
+FSInfo Bereich ausgeben
+```bash
+$ blkcat image.dd 1 1 | xxd -a
+```
 
 ## Dateiforensik
 
@@ -623,6 +651,18 @@ v/v 4784131:    $MBR
 v/v 4784132:    $FAT1
 v/v 4784133:    $FAT2
 [REMOVED]
+```
+
+Metadatenadresse einer Datei zu einem Sektor finden
+```bash
+$ ifind -d 10950 wc.dd
+21
+```
+
+Vollständigen Dateinamen anhand Metadatenadresse erhalten
+```bash
+$ ffind wc.dd 26
+* /find_me
 ```
 
 ### File Carving
