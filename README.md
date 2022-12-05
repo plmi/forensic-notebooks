@@ -1,3 +1,5 @@
+# TODO
+
 * /sys/module/libata/parameters/ignore_hpa auf 0 setzen
 * HPA/DCO sichern (beachte Leitfaden S. 58)
 * in unpartitionierten Bereichen könnten sich Daten verstecken (S. 63)
@@ -13,6 +15,22 @@ xxd -a
 `dd if=mbr.dd bs=1 skip=$((0x1be)) count=$((4*16)) | xxd`
 * Das Typ Byte im Partitionstabelleneintrag ist kein ausreichender Indikator für ein Dateisystem. Besser ist fsstat,
 dort tragen wesentlich mehr ... zur .. bei
+
+Partition
+- zu Beginn gibt die Paritionstabelle nur die vermeintlichen Dateisysteme an (muss verifiziert werden, dass Angaben konsistent sind, siehe Programm fsstat in Besprechung Übung 2)
+- sollten mit dd zur weiteren Untersuchung einzeln extrahiert werden
+
+Partition in Datei schreiben
+```bash
+$ dd if=/dev/sdb1 of=partition1.dd
+```
+
+# Dateisystem
+- Unterscheidung zwischen (nicht-) essentiallen Daten
+- ungenutzte Volume Slack Sektoren bei der Analyse nicht vergessen
+
+- Informationen im Bootsektor sind als vertrauenswürdig einzustufen, da sonst das Dateisystem korrumpiert sein würde (1. Vorlesung vom PW Folie 19)
+- mit sigfind kann den Beginn der MFTs von NTFS Dateisystemstrukturen finden
 
 # Arbeitskopie
 - beim Anlegen der Arbeitskopie die richtigen Fachbegriffe verwenden (S. 54f, "bitgenau" etc.)
@@ -30,22 +48,6 @@ $ sha256sum -c hashlist
 partition1.dd: OK
 partition2.dd: OK
 ```
-
-# Paritionen
-- zu Beginn gibt die Paritionstabelle nur die vermeintlichen Dateisysteme an (muss verifiziert werden, dass Angaben konsistent sind, siehe Programm fsstat in Besprechung Übung 2)
-- sollten mit dd zur weiteren Untersuchung einzeln extrahiert werden
-
-Partition in Datei schreiben
-```bash
-$ dd if=/dev/sdb1 of=partition1.dd
-```
-
-# Dateisystem
-- Unterscheidung zwischen (nicht-) essentiallen Daten
-- ungenutzte Volume Slack Sektoren bei der Analyse nicht vergessen
-
-- Informationen im Bootsektor sind als vertrauenswürdig einzustufen, da sonst das Dateisystem korrumpiert sein würde (1. Vorlesung vom PW Folie 19)
-- mit sigfind kann den Beginn der MFTs von NTFS Dateisystemstrukturen finden
 
 # Partitionsschema: DOS
 
@@ -295,7 +297,7 @@ Maximal adressierbare Anzahl Cluster im Dateisystem
 - 2^(Bitlänge FAT-Eintrag)
 - z.B. FAT16: 2^16 = 65536 Cluster
 ```
- 1098 
+
 ## File Allocation Table (FAT)
 
 FAT Bereich wird *nicht* über Cluster adressiert.  
