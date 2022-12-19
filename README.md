@@ -248,7 +248,7 @@ Größe des Wurzelverzeichnisses in Bytes
 
 ![fat32-additional-bootsector-info](./images/fat32-additional-bootsector-info.png)
 
-### Korrupten FAT32 Bootsektor wiederherstelle.
+### Korrupten FAT32 Bootsektor wiederherstellen
 
 In FAT32 existiert für gewöhnlich ein Backup des Bootsektors an LBA 6.
 ```bash
