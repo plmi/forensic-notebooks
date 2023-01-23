@@ -585,7 +585,11 @@ r/r * 304646:   find_me/secret
 
 ## Zeitstempel
 
-Die Zeitstempel lassen sich aus den Verzeichnisseinträgen der FAT auslesen.
+Die Zeitstempel lassen sich aus den Verzeichnisseinträgen der FAT auslesen.  
+Unterschiedliche Zeitstempel haben unterschiedliche Genauigkeiten.
+* Erzeugungszeitpunkt auf 10 ms genau
+* letzter schreibender Zugriff auf 2 Sekunden genau
+* letzter lesender Zugriff auf den Tag genau
 
 ### Datum
 
@@ -631,6 +635,103 @@ MSE berechnen
 Keine hinreichende, aber notwendige Bedingung für FAT32 Dateisystem (2. Vorlesung PW Folie 19)
 - Belastbare Argumente, wenn charakteritische Merkmale eine Plausibilitätsprüfung bestehen
 - fsstat kann dies z.B. anhand interner Heuristiken bestätigen
+
+# NTFS
+
+* Paradigma: *Everything is a file*
+* zentrale Dateisystemdaten beginnen mit `$`
+
+### Dateisystemdaten
+
+![dateisystemdaten](./images/dateisystemdaten.png)
+
+
+## Dateisystemlayout
+
+![ntfs-layout](./images/ntfs-layout.png)
+
+![ntfs-layout2](./images/ntfs-layout2.png)
+
+* `$Boot`: Bootsektor ist gleichzeitig laut dem Paradigma auch eine Datei.
+  * Metadatenadresse 7
+  * Backup in Dateisystem-Slack.
+* `$MFT`: Master File Table
+  * Metadatenadresse 0
+  * beinhaltet Metadaten aller Objekte
+  * Größe der Einträge: 1KiB = 1024 Byte
+  * Eintrag mit Metadatenadresse refereziert
+  * Metadatenadresse 0-15: Dateisystemdateien
+  * MFT-Zone: für MFT reservierten Bereich
+* `$MFTMirr`: Backup der `$MFT`
+  * Metadatenadresse 1
+  * beinhaltet 4 Einträge (MFT, MFTMirror, Metadatenjournal, Laufwerkinformationen)
+  * Größe: 1 Cluster = 4 KiB = 4 * 1 KiB MFT-Eintrag
+* `$LogFile`: Metadatenjournal - protokolliert Veränderungen
+  * Metadatenadresse 2
+
+## Bootsektor
+
+`$Boot` über Metadatenadresse 7 erreichbar und gleichzeitig der erste Sektor.
+
+![bootsektor-ntfs](./images/bootsektor-ntfs.png)
+
+Bootsektor über seine Metadatenadresse 7 dumpen
+```bash
+$ icat image-ntfs.dd 7 | xxd
+```
+
+Bootsektor über Sektor 0 dumpen
+```bash
+$ blkcat ntfs.dd 0
+```
+
+NTFS-Dateisystem mounten
+```bash
+$ sudo mount -t ntfs-3g -o ro,loop,noexec,show_sys_files image-ntfs.dd /mnt
+```
+
+## MFT-Eintrag
+
+![mft-eintrag](./images/mft-eintrag.png)
+
+![mft-eintrag2](./images/mft-eintrag2.png)
+
+### MFT-Eintrag Header
+
+![mft-header](./images/mft-header.png)
+
+Beispiel eines MFT-Eintrags
+
+![mft-eintrag0](./images/mft-eintrag0.png)
+
+* Objekte werden mit 64-Bit *Dateiadresse* identifizert/adressiert (braun)
+  * Metadatenadresse: niederwertigesten 48-Bit
+  * Sequenznummber: restlichen 16-Bit
+
+Nach fehlerhaften Einträgen filtern
+```bash
+$ TODO: nach BAAD Einträgen mit Abstand 1024 Byte suchen
+```
+
+### Attribute
+
+Attribute sind Teil des MFT-Bodies und kapseln Informationen zu einem Objekt.  
+Man unterscheidet
+* `residente`: speichern Nutzdaten im Attribut-Body, also im MFT-Eintrag. Für kleine Daten < 1 KiB
+* `nicht-residente`: speichern nur Verweis auf Cluster, in dem Nutzdaten liegen
+  * Nutzdaten liegen in Cluster-Runs = Folge von Clustern
+
+##### Wichtige Standardattribute in NTFS
+
+![standard-attribute-ntfs](./images/standard-attribute-ntfs.png)
+
+##### Attribut Header: residentes Attribut
+
+![attribut-header](./images/attribut-header.png)
+
+## Zeitstempel
+
+Zeitstempel = Anzahl der Zeiteinheiten (100ns) bezüglich Referenzpunkt.
 
 # FSInfo
 Bitmap-Datentruktur. Gibt den Allokationsstatus eines Clusters an. Adresse steht als nicht-essentieller Eintrag im Bootsektor an Offset 48-49.  
