@@ -671,7 +671,7 @@ Keine hinreichende, aber notwendige Bedingung für FAT32 Dateisystem (2. Vorlesu
 * `$LogFile`: Metadatenjournal - protokolliert Veränderungen
   * Metadatenadresse 2
 
-## Bootsektor
+## Bootsektor ($Boot)
 
 `$Boot` über Metadatenadresse 7 erreichbar und gleichzeitig der erste Sektor.
 
@@ -729,6 +729,12 @@ Block: 36 (+2)
 Nach fehlerhaften MFT-Einträgen (`BAAD`) suchen
 ```bash
 $ sigfind 42414144 image-ntfs.dd
+```
+
+Auf bestimmtes Attribut einer Metadatenadresse zugreifen
+```bash
+# auf $STANDARD_INFORMATION (16) Attribut des $MFT (0) Objekts zugreifen
+$ icat partition.dd 0-16
 ```
 
 ### Attribute
