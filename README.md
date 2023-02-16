@@ -652,6 +652,8 @@ Keine hinreichende, aber notwendige Bedingung für FAT32 Dateisystem (2. Vorlesu
 
 ![ntfs-layout2](./images/ntfs-layout2.png)
 
+![inodes-ntfs](./images/inodes-ntfs.png)
+
 * `$Boot`: Bootsektor ist gleichzeitig laut dem Paradigma auch eine Datei.
   * Metadatenadresse 7
   * Backup in Dateisystem-Slack.
@@ -794,6 +796,7 @@ $ icat image-ntfs.dd 37-128-3
 
 ## Zeitstempel
 
+Die relevanten Zeitstempel befinden sich im `$STANDARD_INFORMATION` Attribut.  
 Zeitstempel = Anzahl der Zeiteinheiten (100ns) bezüglich Referenzpunkt.
 
 # FSInfo
