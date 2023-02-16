@@ -675,6 +675,13 @@ Keine hinreichende, aber notwendige Bedingung für FAT32 Dateisystem (2. Vorlesu
 
 ![bootsektor-ntfs](./images/bootsektor-ntfs.png)
 
+Teilwerte aus defekten NTFS Bootsektor auslesen
+```bash
+$ file bootsector.dd
+# defekter Startcluster der MFT (-1)
+bootsector.dd: DOS/MBR boot sector, code offset 0x52+2, OEM-ID "NTFS    ", sectors/cluster 8, Media descriptor 0xf8, sectors/track 0, dos < 4.0 BootSector (0x80), FAT (1Y bit by descriptor); NTFS, sectors 993279, $MFT start cluster -1, $MFTMirror start cluster 62079, bytes/RecordSegment 2^(-1*246), clusters/index block 1, serial number 01f01cfb34fec35f2
+```
+
 Bootsektor über seine Metadatenadresse 7 dumpen
 ```bash
 $ icat image-ntfs.dd 7 | xxd
@@ -708,9 +715,18 @@ Beispiel eines MFT-Eintrags
   * Metadatenadresse: niederwertigesten 48-Bit
   * Sequenznummber: restlichen 16-Bit
 
-Nach fehlerhaften Einträgen filtern
+Nach MTF-Einträgen suchen. Jeder Eintrag beginnt mit `FILE0`
+```
+$ sigfind 46494c45 image-ntfs.dd
+Block size: 512  Offset: 0  Signature: 46494C45
+Block: 32 (-)
+Block: 34 (+2)
+Block: 36 (+2)
+```
+
+Nach fehlerhaften MFT-Einträgen (`BAAD`) suchen
 ```bash
-$ TODO: nach BAAD Einträgen mit Abstand 1024 Byte suchen
+$ sigfind 42414144 image-ntfs.dd
 ```
 
 ### Attribute
@@ -728,6 +744,53 @@ Man unterscheidet
 ##### Attribut Header: residentes Attribut
 
 ![attribut-header](./images/attribut-header.png)
+
+## $Bitmap
+
+Damit lässt sich der Allokationsstatus eines Clusters ermitteln.  
+Jedes Bit repräsentiert einen Cluster. 1 Byte ergibt Aufschluss über 8 Cluster.  
+Die `$Bitmap` hat die Metadatenadresse `6`.
+
+Allokationsstatus von Cluster 28000 ermitteln
+```bash
+Byte-Position = 28000 / 8 Cluster pro Byte = 3500 = 0xdac
+$ icat image-ntfs.dd 6 | xxd
+[...]
+00000da0: 00ff ffff ffff ffff ffff ffff 7f00 0000  ................
+
+0x7f = 1111111
+
+LSB = 1 = Cluster ist alloziert
+```
+
+## Alternate Data Stream (ADS)
+
+Dateien legen Inhaltsdaten im `$DATA` Attribut ab. Dieses besitzt *keinen* Attributnamen (`Name: N/A`) und ist das Default-Attribut der Inhaltsdaten. Ihre Dateigröße entspricht der, die der Dateibrowser anzeigt. ADS sind zusätzliche `$DATA` Attribute in denen Zusatzinformationen gespeichert werden können.
+
+ADS Dateien finden und anzeigen. `128` ist der Type Identifier von `$DATA`. Mit `-2`, `-3` etc. werden die ADS angegeben.
+```bash
+$ fls -r image-ntfs.dd
+++ r/r 37-128-1:        secret.png
+++ r/r 37-128-3:        secret.png:hidden.txt
+++ r/r 37-128-4:        secret.png:Zone.Identifier
+```
+
+Gleiches lässt sich mit `istat` anzeigen
+```bash
+$ istat image-ntfs.dd 37
+[...]
+Attributes:
+Type: $DATA (128-1)   Name: N/A   Non-Resident   size: 11913  init_size: 11913
+25344 25345 25346
+Type: $DATA (128-3)   Name: hidden.txt   Resident   size: 120
+Type: $DATA (128-4)   Name: Zone.Identifier   Resident   size: 26
+```
+
+ADS anzeigen
+```bash
+$ icat image-ntfs.dd 37-128-3
+[Inhalt anzeigen]
+```
 
 ## Zeitstempel
 
