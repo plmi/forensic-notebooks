@@ -1110,4 +1110,158 @@ $ echo '6500620065007200690063006800740032003000310035002e00700064006600' | xxd 
 ebericht2015.pdf
 ```
 
+## NTFS-Dateisystem
 
+### 7_NTFS_Bootsector_0 (3)
+
+> Mit welcher Metadatenadresse können Sie in einem NTFS-Dateisystem auf den Bootsektor zugreifen?
+
+**Flag**: `7`
+
+### 7_NTFS_Bootsector_1 (3)
+
+> Sie erhalten den Hexdump des Bootsektors eines NTFS-formatierten Datenträgers. Bestimmen Sie die Adresse des ersten Clusters der MFT als Dezimalzahl (Eingabe ohne Trennzeichen für Tausender, Millionen, also beispielsweise 1234567).
+
+```text
+$ icat image-ntfs.dd 7 | xxd
+0000000: eb52 904e 5446 5320 2020 2000 0208 0000 .R.NTFS .....
+0000010: 0000 0000 00f8 0000 3f00 ff00 0008 0000 ........?.......
+0000020: 0000 0000 8000 8000 ff1f 0300 0000 0000 ................
+0000030: 5521 0000 0000 0000 0200 0000 0000 0000 U!..............
+0000040: f600 0000 0100 0000 b2f4 d5cc 2cd6 cce8 ............,...
+0000050: 0000 0000 fa33 c08e d0bc 007c fb68 c007 .....3.....|.h..
+0000060: 1f1e 6866 00cb 8816 0e00 6681 3e03 004e ..hf......f.>..N
+0000070: 5446 5375 15b4 41bb aa55 cd13 720c 81fb TFSu..A..U..r...
+0000080: 55aa 7506 f7c1 0100 7503 e9dd 001e 83ec U.u.....u.......
+0000090: 1868 1a00 b448 8a16 0e00 8bf4 161f cd13 .h...H..........
+00000a0: 9f83 c418 9e58 1f72 e13b 060b 0075 dba3 .....X.r.;...u..
+[REMOVED]
+```
+
+Die Clusteradresse ist der 8 Byte Wert ab Offset 0x30.
+
+**Flag:** `8533`
+
+### 7_NTFS_Timestamp_1 (3)
+
+> In NTFS werden Zeitstempel an verschiedenen Stellen gespeichert.  
+> Welches NTFS-Attribut enthält die relevanten Zeitstempel?
+
+**Flag:** `$STANDARD_INFORMATION`
+
+### 7_NTFS_Fixup_Array_1 (3)
+
+> Wie viele Einträge hat das Fixup Array aus dem $DATA Attribut des ersten Eintrages in der MFT?
+
+```text
+0000000: 4649 4c45 3000 0300 4ba7 6401 0000 0000
+0000010: 0100 0100 3800 0100 b801 0000 0004 0000
+0000020: 0000 0000 0000 0000 0600 0000 0000 0000
+0000030: 5800 0000 0000 0000 1000 0000 6000 0000
+[REMOVED]
+```
+
+Die Anzahl der Fixup-Einträge ist an Offset `0x06 - 0x07`.
+
+**Flag:** `3`
+
+### 7_NTFS_FS_Files_1 (3)
+
+> Mittels welcher Datei im NTFS Dateisystem können Sie herausfinden, ob ein Cluster alloziert ist?
+
+**Flag:** `$Bitmap`
+
+### 7_NTFS_FS_Files_2 (3)
+
+> Welche Datei im NTFS Dateisystem enthält Informationen zu Clustern mit beschädigten Sektoren?
+
+**Flag:** `$BadClus`
+
+### 7_NTFS_Index_Records_1 (3)
+
+> Wie viele Kindknoten kann ein NTFS B-tree Knoten maximal besitzen?
+> a) 1 
+> b) 2  
+> c) mehr als 2  
+> d) keine  
+
+Es sind 4 Kindknoten.
+
+**Flag:** `c`
+
+### 7_NTFS_Bootsector_3 (5)
+
+> Sie erhalten den Hexdump des Bootsektors eines NTFS-formatierten Datenträgers. Bestimmen Sie die Größe eines Index-Records als Dezimalzahl in Byte (Eingabe ohne Trennzeichen für Tausender, Millionen, also beispielsweise 1234567).
+
+```bash
+$ icat image-ntfs.dd 7 | xxd
+0000000: eb52 904e 5446 5320 2020 2000 0208 0000 .R.NTFS .....
+0000010: 0000 0000 00f8 0000 3f00 ff00 0008 0000 ........?.......
+0000020: 0000 0000 8000 8000 ff1f 0300 0000 0000 ................
+0000030: 5521 0000 0000 0000 0200 0000 0000 0000 U!..............
+0000040: f600 0000 0100 0000 b2f4 d5cc 2cd6 cce8 ............,...
+0000050: 0000 0000 fa33 c08e d0bc 007c fb68 c007 .....3.....|.h..
+0000060: 1f1e 6866 00cb 8816 0e00 6681 3e03 004e ..hf......f.>..N
+0000070: 5446 5375 15b4 41bb aa55 cd13 720c 81fb TFSu..A..U..r...
+0000080: 55aa 7506 f7c1 0100 7503 e9dd 001e 83ec U.u.....u.......
+0000090: 1868 1a00 b448 8a16 0e00 8bf4 161f cd13 .h...H..........
+00000a0: 9f83 c418 9e58 1f72 e13b 060b 0075 dba3 .....X.r.;...u..
+[REMOVED]
+```
+
+Die Größe steht an Offset `0x44`: `0x01`. Die Einheit ist Cluster.  
+Die Größe eines Clusters in Sektoren steht an Offset `0x0d`: `0x08`  
+Ein Sektor ist 512 Byte.
+```text
+1 * 8 * 512 =  4096
+```
+
+**Flag:** `4096`
+
+### 7_NTFS_Fixup_Array_2 (5)
+
+> Der Fixup Array eines MFT Eintrags sei ABCD EF00 0102.
+> Welchen Bytestring finden Sie an Offset 1022 bis 1023 dieses MFT-Eintrags?
+
+**Flag:** `ABCD`
+
+### 7_NTFS_File_Address_1 (5)
+
+> Bestimmen Sie für ein NTFS-Dateisystem Ihrer Wahl die Dateiadressen der ersten vier MFT-Einträge.
+> Wie häufig unterscheidet sich hierbei die Sequenznummer von der Metadatenadresse?
+
+Sie unterscheidet sich nur für den ersten Eintrag mit Metadatenadresse `0`. Dort ist sie `1`.
+
+```bash
+$ dd if=ntfs1.dd count=$((2 * 4)) skip=$((8533 * 8)) | xxd
+00000400: 4649 4c45 3000 0300 3023 1000 0000 0000  FILE0...0#......
+00000410: 0100 0100 3800 0100 5801 0000 0004 0000  ....8...X.......
+
+$ istat ntfs1.dd 0
+MFT Entry Header Values:
+Entry: 0        Sequence: 1
+```
+
+**Flag:** `1`
+
+### 7_NTFS_Flag_Values_3 (5)
+
+> Welche Informationen erhalten Sie über einen Index-Eintrag, wenn Sie in dessen Flag-Feld (also Offset 12 bis 15) den Wert 0x03 finden?
+> a) Eintrag verweist auf Kindknoten
+> b) Letzter Index-Eintrag in diesem Index-Record
+> c) Letzter Eintrag und Verweis auf Kindknoten
+
+**Flag:** `c`
+
+### 7_NTFS_Cluster_Runlist_1 (5)
+
+> Wir betrachten das Default-$DATA-Attribut der Datei hidden.txt . Wie viele Cluster belegen die Inhaltsdaten?
+
+```text
+0000000: 8000 0000 6000 0000 0100 4000 0000 0100 ....`.....@.....
+0000016: 0000 0000 0000 0000 ef20 0000 0000 0000 ......... ...... 
+0000032: 4000 0000 0000 0000 00c0 8300 0000 0000 @............... 
+0000048: 00c0 8300 0000 0000 00c0 8300 0000 0000 ................ 
+0000064: 32c0 1eb5 3a05 2170 1b1f 2290 015f 7e31 2...:.!p..".._~1 
+```
+0000080: 2076 ed00 2110 8700 00b0 6e82 4844 7e82 v..!.....n.HD~.
