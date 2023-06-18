@@ -66,7 +66,7 @@
 > Which date is 717003710234?
 > (Format DD.MM.YY-hh:mm:ss)
 
-**Flag:** 30.07.17 17:20:43
+**Flag:** `30.07.17 17:20:43`
 
 ## Timing 20
 
@@ -153,8 +153,10 @@ $ hashcat.exe -a 3 -m 0 .\hash.txt ?d0?d0?d0?d0?d0
 
 Use something like https://github.com/qotto/smspdudecoder
 
+```bash
 >>> from smspdudecoder.codecs import GSM, UCS2
 >>> GSM.decode('CD6AD13944169D')
+```
 
 **Flag:** `MUENCHEN`
 
@@ -162,7 +164,10 @@ Use something like https://github.com/qotto/smspdudecoder
 
 > What is the PDU encoded value of “FORENSIK” (in HEX without spaces or 0x)
 
+```bash
+>>> from smspdudecoder.codecs import GSM, UCS2
 >>> GSM.encode('FORENSIK')
+```
 
 **Flag:** `C6A7B4E89C2697`
 
@@ -170,4 +175,4 @@ Use something like https://github.com/qotto/smspdudecoder
 
 > What is the unique serial number of the following ICCID: 89490120420139348761
 
-**Flag:** 13934876
+**Flag:** `13934876`
