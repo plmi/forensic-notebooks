@@ -853,3 +853,134 @@ Versuchen Dateien mit File Carving zu extrahieren
 ```bash
 $ binwalk --dd='.*' meeting.jpeg
 ```
+
+# Windows Forensik
+
+## Standardverzeichnisse
+
+| Verzeichnis               |   Abkürzung    |      Pfad    |
+| ------------------------- | -------------- | ------------ |
+| Windows-Systemverzeichnis | `%SystemRoot%` | `C:\Windows` |
+| Nutzerspezifisches Standardverzeichnis | `%UserProfile%` | `C:\Users\USER` |
+
+### Systemweite-Standardverzeichnisse
+
+![image](images/standardverzeichnisse.png)
+
+### Nutzerspezifische-Standardverzeichnisse
+
+![image](images/nutzerspezifische-standardverzeichnisse.png)
+
+## Security Identifier
+
+Windows nutzt eine eindeutige SID (*Security Identifier*) zur Identifizierung von Nutzern, Gruppen oder Ressourcen. Sie werden auch *Security Principal* genannt.
+
+Nutzer **SID**s beginnen immer mit `S-1-5-21` und folgt der allgemeinen Form `S-1-5-21-<Machine SID>-<User RID>`. Die darauffolgenden 3 Sub-Authorities sind jeweils 32-Bit lang (= 96-Bit) und beschreiben lokale Maschine bzw. Domain. Der 96-Bit Wert wird `Domain SID` oder **Machine SID** genannt. Er wird im Registry Wert `HKLM\SAM\Domains\Account\V` gespeichert. 
+
+**Maschinen SID berechnen**
+
+Wert in `HKLM\SAM\Domains\Account\V` = `18b9 6162 d5cd df86 23ba eb95`
+
+![image](images/maschinen-sid.png)
+
+Daraus ergibt sich die Maschinen SID zu `S-1-5-21-1650571544-2262814165-2515253795`
+
+**Maschinen SID aus Hexdump bestimmen**
+
+![image](images/kontrollaufgabe-maschinen-sid.png)
+
+**Aufbau**
+
+```
+S-1-IdentifierAuthority-SubAuthority1-...-SubAuthorityn-RelativeIdentifier
+```
+* "S": kennzeichnet String als SID
+* "1": Version der SID-Spezifikation
+* `IdentifierAuthority`: gibt Sicherheitsinstanz (`Security Authority`) an."5" beschreibt Security Authoriy `SECURITY_NT_AUTHORITY`. Ihre Aufgabe ist z.B. Vergabe der SID für Nutzer.
+* `SubAuthority`: Hängt von Identifier Authority ab. Bei SECURITY_NT_AUTHORITY lautet er "21" und ist für IDs der Security Principals zuständig.
+* `RelativeIdentifier` (**RID**): beschreibt bestimmten Security Principal im Kontext der vorhergehenden Authorities. Bei der RID im Kontext einer Nutzer SID gelten folgende Konventionen. Die Zuordnung von RID zu Nutzername erfolgt über SAM Datei.
+  * 500 (0x1f4): Standard-Administrator
+  * 501 (0x1f5): Standard-Gast
+  * ab 1000 (0x3e8) = individuell eingerichtete Nutzeraccounts
+
+Die SID eines Nutzers hat die Form `S-1-5-21-<Machine ID>-<user RID>`. SID des Standard-Administrators z.B. `S-1-5-21-1650571544-2262814165-2515253795-500`, des ersten angelegten Nutzers z.B. `S-1-5-21-1650571544-2262814165-2515253795-1000`.
+
+**SID eines Windows Nutzers**
+
+![image](images/identifier-authorities.png)
+
+**Liste aller Windows Nutzer ermitteln**
+
+Registry-Schlüssel `HKLM\Software\Microsoft\WindowsNT\CurrentVersion\ProfileList` enthält alle lokalen oder domänen Nutzer, die sich mindestens einmal angemeldet haben. Alternativ Tool `PsGetSid` verwenden.
+
+## Windows Registry
+
+Herausforderungen bei der forensischen Untersuchung der Windows Registry:
+* Unvollständige Dokumentation
+* Hohe Komplexität und Umfang: Registry wird auch von Drittherstellern genutzt
+* Fehlende Stabilität: Einträge unterscheiden sich in unterschiedlichen Windows Versionen
+* Volatilität: nicht alle Einträge sind persistent. Registry wird beim Systemstart in Arbeitsspeicher geladen. Volatile Registryeinträge z.B. `HKLM_HARDWARE` sind bei Post-Mortem Analyse nicht verfügbar.
+
+### Struktur der Registry
+
+Die Windows Registry ist eine hierarchisch organisierte Datenbank bzw. Baumstruktur. Die Knoten des Baums sind Schlüssel. Die Informationen zu einem Schlüssel werden in 3-Tupel gespeichert.
+
+* Schlüssel (*key*): Knoten in Baumstruktur. Ist eine Art Container.
+* Wert (*value*): Speichert Informationen eines Schlüssels in Werten. Ein Wert ist ein 3-Tupel aus (Name des Wertes, Datentyp, Daten).
+* Unterschlüssel (*subkey*): Kindknoten eines Registryschlüssels.
+
+Hauptschlüssel bilden oberste Ebene der Registry. Nur HKU und HKLM sind Hauptschlüssel. Die drei übrigen Hauptschlüssel sind Verweise auf Unterschlüssel von HKU un HKLM.
+
+![image](images/hauptschluessel.png)
+
+* `HKEY_CURRENT_CONFIG` (HKCC) ist ein Verweis auf `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\`
+* `HKEY_CLASSES_ROOT` (HKCR): kombiniert die beiden HIVES
+  * `HKEY_CURRENT_USER\Software\Classes`: systemweite Einstellungen und Standardwerte für z.B. Dateieindungen
+  * `HKEY_LOCAL_MACHINE\Software\Classes`: benutzerspezifische Einstellungen
+* `HKEY_CURRENT_USER` (HKCU): verweist auf einen Unterschlüssel in `HKEY_USERS`, der der SID des aktuellen Nutzers entspricht.
+
+## Registry Hives
+
+Die Registry setzt sich aus mehreren diskreten Dateien, sogennanten **Hive-Daten** zusammen. Ein *Hive* legt einen Zweig in der Baumstruktur fest.
+
+| Hive | Mount Point | Speicherort | Inhalt |
+| ---- | ----------- | ------ | -------- |
+| DEFAULT | `HKEY_USERS\DEFAULT` | `%SYSTEMROOT%\system32\config\` | - |
+| SAM | `HKEY_USERS\DEFAULT` | `%SYSTEMROOT%\system32\config\` |*Security Account Manager* (SAM) verwaltet Sicherheitskonten aller angelegten Nutzer. Enthält gehashtes Nutzerpasswort. |
+| SECURITY | `HKEY_LOCAL_MACHINE\Security`  | `%SYSTEMROOT%\system32\config\` | enthält SAM und ist für Zugriffsberechtigungen zuständig |
+| SOFTWARE | `HKEY_LOCAL_MACHINE\Software` | `%SYSTEMROOT%\system32\config\` | speichert Einstellungen zu installierten Anwendungen |
+| SYSTEM | `HKEY_LOCAL_MACHINE\System`  | `%SYSTEMROOT%\system32\config\` | speichert Konfiguration zu Geräten und Diensten |
+| NTUSER.DAT | `HKEY_CURRENT_USER` | `%SYSTEMROOT%\system32\config\` | - |
+| USRCLASS.DAT | `HKEY_CURRENT_USER\Software\CLASSES` | `%SYSTEMROOT%\system32\config\` | - |
+
+![image](images/hive-speicherorte.png)
+
+Es gibt gleichnamige Backup und Logdateien zu den Hive-Dateien, sogenannte *Unterstützungsdateien*, mit unterschiedlichen Dateiendungen, um unbrauchbare Hive-Dateien widerherzustellen.
+
+* `.log`: ogfile über Änderungen der zugehörigen Hive-Datei
+* `.sav`: Backup-Kopie der zugehörigen Hive-Datei während des Setups
+* `.alt`: Zusätzliche Backup-Kopie der Hive-Datei SYSTEM
+
+**Hive Backup erstellen**
+
+Man benötigt sowohl das Hive selbst als auch die Logdateien (`C:\Windows\System32\config\TxR\*.LOG`). In den Transaktionslogs stehen womöglich aktueller Informationen. Beide Dateien müssen z.B. mit `Registry Explorer` (Zimmermann) oder `registry-transaction-logs` zusammengeführt werden. Alte Backups mit bereits gelöschten Schlüsseln können unter `C:\Windows\System32\config\RegBack` liegen.
+
+```bash
+$ pip install regipy
+$ registry-transaction-logs NTUSER.DAT -p ntuser.dat.log1 -s ntuser.dat.log2 -o recovered_NTUSER.dat
+```
+
+Quelle: https://andreafortuna.org/2021/02/06/windows-registry-transaction-logs-in-forensic-analysis/
+
+**Aufbau**
+
+Ein *Block* ist die Speichereinheit einer Hive-Datei und ist 4 KiB groß. Die Anzahl allozierter Blöcke wächst bzw. schrumpft je nach Bedarf. Die Informationen eines Schlüssels oder Wertes werden in Containern, sog. *Zellen* gespeichert. Ein *Bin* speichert eine oder mehrere Zellen. Offsets in einer Hive-Datei werden relativ zum Beginn des ersten *bins* angegeben.
+
+![image](images/hive.png)
+
+![image](images/aufbau-hive-2.png)
+
+Der erste Block heißt Basisblock.
+
+![image](images/basisblock.png)
+
