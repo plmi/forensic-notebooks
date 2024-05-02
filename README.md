@@ -867,13 +867,15 @@ $ binwalk --dd='.*' meeting.jpeg
 
 ![image](images/roaming-vs-local.png)
 
-**%UserProfile%\AppData\Roaming vs %UserProfile%\AppData\Roaming\Local**
+**[...]\Roaming vs. [...]\Local**
 
 Dateien in **Local** werden nicht synchronisiert, wenn sich der Benutzer im gleichen Netzwerk an einem anderen Rechner anmeldet.
 
 ### Systemweite-Standardverzeichnisse
 
 ![image](images/standardverzeichnisse.png)
+
+Mithilfe **Prefetch** Dateien lässt sich eine Aussage darüber treffen, ob eine Applikation installiert war. Ebenso lässt sich eine Aussage über die Häufigkeit und den Zeitpunkt der (letzten) Ausführung treffen.
 
 ### Nutzerspezifische-Standardverzeichnisse
 
@@ -904,7 +906,7 @@ S-1-IdentifierAuthority-SubAuthority1-...-SubAuthorityn-RelativeIdentifier
 ```
 * "S": kennzeichnet String als SID
 * "1": Version der SID-Spezifikation
-* `IdentifierAuthority`: gibt Sicherheitsinstanz (`Security Authority`) an."5" beschreibt Security Authoriy `SECURITY_NT_AUTHORITY`. Ihre Aufgabe ist z.B. Vergabe der SID für Nutzer.
+* `IdentifierAuthority`: gibt Sicherheitsinstanz (`Security Authority`) an. "5" beschreibt Security Authoriy `SECURITY_NT_AUTHORITY`. Ihre Aufgabe ist z.B. Vergabe der SID für Nutzer.
 * `SubAuthority`: Hängt von Identifier Authority ab. Bei SECURITY_NT_AUTHORITY lautet er "21" und ist für IDs der Security Principals zuständig.
 * `RelativeIdentifier` (**RID**): beschreibt bestimmten Security Principal im Kontext der vorhergehenden Authorities. Bei der RID im Kontext einer Nutzer SID gelten folgende Konventionen. Die Zuordnung von RID zu Nutzername erfolgt über SAM Datei.
   * 500 (0x1f4): Standard-Administrator
@@ -916,6 +918,10 @@ Die SID eines Nutzers hat die Form `S-1-5-21-<Machine ID>-<user RID>`. SID des S
 **SID eines Windows Nutzers**
 
 ![image](images/identifier-authorities.png)
+
+**Wichtige SIDs**
+
+![image](images/wichtige-sids.png)
 
 **Liste aller Windows Nutzer ermitteln**
 
@@ -929,9 +935,20 @@ Herausforderungen bei der forensischen Untersuchung der Windows Registry:
 * Fehlende Stabilität: Einträge unterscheiden sich in unterschiedlichen Windows Versionen
 * Volatilität: nicht alle Einträge sind persistent. Registry wird beim Systemstart in Arbeitsspeicher geladen. Volatile Registryeinträge z.B. `HKLM_HARDWARE` sind bei Post-Mortem Analyse nicht verfügbar.
 
+## Live vs. Persistent
+Live
+* in den RAM geladene Instanz der Registry
+* vom `Configration Manager` (CM) verwaltet
+* Erkennbar an `CURRENT` Schlüssel
+
+Persistent
+* Gespeichert in Hive Dateien (in `%SystemRoot%\system32\config`)
+* nutzerspezifische Hive Dateien im Profilordner des jeweiligen Nutzers
+* Enthält **keine** `CURRENT` Schlüssel
+
 ### Struktur der Registry
 
-Die Windows Registry ist eine hierarchisch organisierte Datenbank bzw. Baumstruktur. Die Knoten des Baums sind Schlüssel. Die Informationen zu einem Schlüssel werden in 3-Tupel gespeichert.
+Die Windows Registry ist eine hierarchisch organisierte Datenbank bzw. Baumstruktur. Sie wird vom `Configuration Manager` (CM) verwaltet. Die Knoten des Baums sind Schlüssel. Die Informationen zu einem Schlüssel werden in 3-Tupel gespeichert.
 
 * Schlüssel (*key*): Knoten in Baumstruktur. Ist eine Art Container.
 * Wert (*value*): Speichert Informationen eines Schlüssels in Werten. Ein Wert ist ein 3-Tupel aus (Name des Wertes, Datentyp, Daten).
@@ -942,7 +959,7 @@ Hauptschlüssel bilden oberste Ebene der Registry. Nur HKU und HKLM sind Hauptsc
 ![image](images/hauptschluessel.png)
 
 * `HKEY_CURRENT_CONFIG` (HKCC) ist ein Verweis auf `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\`
-* `HKEY_CLASSES_ROOT` (HKCR): kombiniert die beiden HIVES
+* `HKEY_CLASSES_ROOT` (HKCR): kombiniert die beiden HIVES (forensisch nachrangig)
   * `HKEY_CURRENT_USER\Software\Classes`: systemweite Einstellungen und Standardwerte für z.B. Dateieindungen
   * `HKEY_LOCAL_MACHINE\Software\Classes`: benutzerspezifische Einstellungen
 * `HKEY_CURRENT_USER` (HKCU): verweist auf einen Unterschlüssel in `HKEY_USERS`, der der SID des aktuellen Nutzers entspricht.
@@ -953,15 +970,17 @@ Die Registry setzt sich aus mehreren diskreten Dateien, sogennanten **Hive-Daten
 
 | Hive | Mount Point | Speicherort | Inhalt |
 | ---- | ----------- | ------ | -------- |
-| DEFAULT | `HKEY_USERS\DEFAULT` | `%SYSTEMROOT%\system32\config\` | - |
-| SAM | `HKEY_USERS\DEFAULT` | `%SYSTEMROOT%\system32\config\` |*Security Account Manager* (SAM) verwaltet Sicherheitskonten aller angelegten Nutzer. Enthält gehashtes Nutzerpasswort. |
-| SECURITY | `HKEY_LOCAL_MACHINE\Security`  | `%SYSTEMROOT%\system32\config\` | enthält SAM und ist für Zugriffsberechtigungen zuständig |
-| SOFTWARE | `HKEY_LOCAL_MACHINE\Software` | `%SYSTEMROOT%\system32\config\` | speichert Einstellungen zu installierten Anwendungen |
-| SYSTEM | `HKEY_LOCAL_MACHINE\System`  | `%SYSTEMROOT%\system32\config\` | speichert Konfiguration zu Geräten und Diensten |
-| NTUSER.DAT | `HKEY_CURRENT_USER` | `%SYSTEMROOT%\system32\config\` | - |
-| USRCLASS.DAT | `HKEY_CURRENT_USER\Software\CLASSES` | `%SYSTEMROOT%\system32\config\` | - |
+| HKU\DEFAULT | `HKEY_USERS\DEFAULT` | `%SYSTEMROOT%\system32\config\` | - |
+| HKLMSAM | `HKEY_USERS\DEFAULT` | `%SYSTEMROOT%\system32\config\` |*Security Account Manager* (SAM) verwaltet Sicherheitskonten aller angelegten Nutzer. Enthält gehashtes Nutzerpasswort. |
+| HKLM\SECURITY | `HKEY_LOCAL_MACHINE\Security`  | `%SYSTEMROOT%\system32\config\` | enthält SAM und ist für Zugriffsberechtigungen zuständig |
+| HKLM\SOFTWARE | `HKEY_LOCAL_MACHINE\Software` | `%SYSTEMROOT%\system32\config\` | speichert Einstellungen zu installierten Anwendungen |
+| HKLM\SYSTEM | `HKEY_LOCAL_MACHINE\System`  | `%SYSTEMROOT%\system32\config\` | speichert Konfiguration zu Geräten und Diensten |
+| NTUSER.DAT (HKCU) | `HKEY_CURRENT_USER` | `%UserProfile%\` | - |
+| HKCU\Software\Classes (USRCLASS.DAT) | `HKEY_CURRENT_USER\Software\CLASSES` | `%UserProfile%\AppData\Local\Microsoft\Windows\` | - |
 
-![image](images/hive-speicherorte.png)
+Ab Windows 10 `AmCache.hve` im Verzeichnis `%SystemRoot%\AppCompat\Programs`.
+
+![image](images/hive-speicherort.png)
 
 Es gibt gleichnamige Backup und Logdateien zu den Hive-Dateien, sogenannte *Unterstützungsdateien*, mit unterschiedlichen Dateiendungen, um unbrauchbare Hive-Dateien widerherzustellen.
 
