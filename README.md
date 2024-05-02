@@ -863,6 +863,14 @@ $ binwalk --dd='.*' meeting.jpeg
 | Windows-Systemverzeichnis | `%SystemRoot%` | `C:\Windows` |
 | Nutzerspezifisches Standardverzeichnis | `%UserProfile%` | `C:\Users\USER` |
 
+## Umgebungsvariablen
+
+![image](images/roaming-vs-local.png)
+
+**%UserProfile%\AppData\Roaming vs %UserProfile%\AppData\Roaming\Local**
+
+Dateien in **Local** werden nicht synchronisiert, wenn sich der Benutzer im gleichen Netzwerk an einem anderen Rechner anmeldet.
+
 ### Systemweite-Standardverzeichnisse
 
 ![image](images/standardverzeichnisse.png)
