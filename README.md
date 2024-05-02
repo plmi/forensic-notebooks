@@ -1013,3 +1013,37 @@ Der erste Block heißt Basisblock.
 
 ![image](images/basisblock.png)
 
+Basisblock-Header der SAM
+
+![image](images/sam.png)
+
+An Offset `0x24` steht das relative Offset zur Wurzelschlüsselzelle. Es lautet in diesem Beispiel  `0x20`. Die Wurzelschlüsselzelle beginnt hier ab Offset `0x1020`.
+
+
+### Bin
+
+Speichert eine oder mehrere *Zellen*. Hat einen 32 Byte Header und einem Payload, der aus einer oder mehreren Zellen besteht.
+
+![image](images/bin-header.png)
+
+### Zellen
+
+Zellen speichern die Daten innerhalb eines Hives. Sie dienen als Container, um Informationen über Schlüssel oder Werte abzulegen.
+
+![image](images/zellen-header.png)
+
+
+#### Aufgabe Zelle
+
+![image](images/kontrollaufgabe-zelle.png)
+
+`0xffffffd0` = `-48` im Zweierkomplement (https://legacy.cryptool.org/de/cto/numberconverter). Die Größe der Zelle ist `-a` = `--48` = 48 Byte. Der Typ ist `766b` bzw. `v (0x76) k (0x6b)`. Es handelt sich somit um eine Wertezelle (*value key*).
+
+### Registry Slack
+
+Tool: ? (Vorlesung 2 Folien)
+
+### Analysestrategie für Registry
+
+![image](images/registry-strategy.png)
+
