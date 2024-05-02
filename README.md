@@ -980,6 +980,8 @@ Die Registry setzt sich aus mehreren diskreten Dateien, sogennanten **Hive-Daten
 
 Ab Windows 10 `AmCache.hve` im Verzeichnis `%SystemRoot%\AppCompat\Programs`.
 
+Das `SAM` Hive kann in der Registry zwar geladen, dessen nutzerspezifische Unterschlüssel aber nicht angezeigt werden. Der Administrator-Account ist nicht privilegiert genug. Der `SYSTEM` Nutzer ist dazu notwendig.
+
 ![image](images/hive-speicherort.png)
 
 Es gibt gleichnamige Backup und Logdateien zu den Hive-Dateien, sogenannte *Unterstützungsdateien*, mit unterschiedlichen Dateiendungen, um unbrauchbare Hive-Dateien widerherzustellen.
