@@ -923,6 +923,8 @@ Die SID eines Nutzers hat die Form `S-1-5-21-<Machine ID>-<user RID>`. SID des S
 
 ![image](images/wichtige-sids.png)
 
+`LOCAL_SYSTEM` ist äquivalent zum Nutzer `root` unter Linux.
+
 **Liste aller Windows Nutzer ermitteln**
 
 Registry-Schlüssel `HKLM\Software\Microsoft\WindowsNT\CurrentVersion\ProfileList` enthält alle lokalen oder domänen Nutzer, die sich mindestens einmal angemeldet haben. Alternativ Tool `PsGetSid` verwenden.
@@ -1015,9 +1017,12 @@ Der erste Block heißt Basisblock.
 
 Basisblock-Header der SAM
 
+**Wann ist ein HIVE dirty?**
+`Primary Sequence Number` und `Secondary Sequence Number` müssen identisch sein, ansonsten ist das Hive *dirty*. Sie geben die Anzahl der (abgeschlossenen) Schreibvorgänge an.
+
 ![image](images/sam.png)
 
-An Offset `0x24` steht das relative Offset zur Wurzelschlüsselzelle. Es lautet in diesem Beispiel  `0x20`. Die Wurzelschlüsselzelle beginnt hier ab Offset `0x1020`.
+An Offset `0x24` steht das relative Offset zur Wurzelschlüsselzelle. Es lautet in diesem Beispiel  `0x20`. Die Wurzelschlüsselzelle beginnt hier ab Offset `0x1020` (zu den angegebenen Offset muss also immer `0x1000` addiert werden).
 
 
 ### Bin
